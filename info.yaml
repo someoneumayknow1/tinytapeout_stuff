@@ -1,4 +1,3 @@
-```yaml
 project:
   title: "Multi-Game VGA Handheld"
   author: "someoneumayknow1"
@@ -46,4 +45,4 @@ project:
     uio[7]: ""
 
 yaml_version: 6
-```
+
