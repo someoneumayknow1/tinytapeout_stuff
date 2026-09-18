@@ -1,64 +1,72 @@
-module new_module (
-    input buttondown,
-    input buttonup,
-    input buttondown_left,
-    input buttonup_left,
-    input clk,
+`default_nettype none
 
-    output reg [15:0] coordinate_a_y,
-    output reg [15:0] coordinate_b_y,
-
-    input reset,
-    input [15:0] ball_x,
-    input [15:0] ball_y,
-
-    output reg bounce,
+module pong (
+    input wire clk,
+    input wire reset,
+    input wire button_up,
+    input wire button_down,
+    input wire button_up_right,
+    input wire button_down_right,
+    output reg [7:0] ball_x,
+    output reg [6:0] ball_y,
+    output reg [6:0] paddle_left_y,
+    output reg [6:0] paddle_right_y,
     output reg [1:0] status
 );
+    localparam SCREEN_WIDTH = 200;
+    localparam SCREEN_HEIGHT = 100;
+    localparam PADDLE_HEIGHT = 20;
+
+    reg signed [1:0] ball_dx;
+    reg signed [1:0] ball_dy;
+    reg [19:0] counter;
+    wire tick = (counter == 20'd0);
 
     always @(posedge clk) begin
-        // Bounce is a one-clock signal
-        bounce <= 0;
-
         if (reset) begin
-            coordinate_a_y <= 150;
-            coordinate_b_y <= 150;
+            counter <= 0;
+            ball_x <= 100;
+            ball_y <= 50;
+            ball_dx <= 1;
+            ball_dy <= 1;
+            paddle_left_y <= 40;
+            paddle_right_y <= 40;
             status <= 2'b00;
-        end
+        end else begin
+            counter <= counter + 1;
+            if (tick && status == 2'b00) begin
+                if (button_up && paddle_left_y > 0)
+                    paddle_left_y <= paddle_left_y - 1;
+                else if (button_down && paddle_left_y < SCREEN_HEIGHT - PADDLE_HEIGHT)
+                    paddle_left_y <= paddle_left_y + 1;
 
-        else if (status == 2'b00) begin
+                if (button_up_right && paddle_right_y > 0)
+                    paddle_right_y <= paddle_right_y - 1;
+                else if (button_down_right && paddle_right_y < SCREEN_HEIGHT - PADDLE_HEIGHT)
+                    paddle_right_y <= paddle_right_y + 1;
 
-            // Player A
-            if (buttonup)
-                coordinate_a_y <= coordinate_a_y + 3;
-            else if (buttondown)
-                coordinate_a_y <= coordinate_a_y - 3;
+                ball_x <= ball_x + ball_dx;
+                ball_y <= ball_y + ball_dy;
 
-            // Player B
-            if (buttonup_left)
-                coordinate_b_y <= coordinate_b_y + 3;
-            else if (buttondown_left)
-                coordinate_b_y <= coordinate_b_y - 3;
+                if (ball_y <= 1)
+                    ball_dy <= 1;
+                else if (ball_y >= SCREEN_HEIGHT - 2)
+                    ball_dy <= -1;
 
-            // Right paddle
-            if (ball_x > 180) begin
-                if ((ball_y > coordinate_a_y - 15) &&
-                    (ball_y < coordinate_a_y + 15))
-                    bounce <= 1;
-                else
-                    status <= 2'b10;
+                if (ball_x <= 5) begin
+                    if (ball_y >= paddle_left_y && ball_y <= paddle_left_y + PADDLE_HEIGHT)
+                        ball_dx <= 1;
+                    else
+                        status <= 2'b11;
+                end
+
+                if (ball_x >= SCREEN_WIDTH - 5) begin
+                    if (ball_y >= paddle_right_y && ball_y <= paddle_right_y + PADDLE_HEIGHT)
+                        ball_dx <= -1;
+                    else
+                        status <= 2'b10;
+                end
             end
-
-            // Left paddle
-            if (ball_x < 20) begin
-                if ((ball_y > coordinate_b_y - 15) &&
-                    (ball_y < coordinate_b_y + 15))
-                    bounce <= 1;
-                else
-                    status <= 2'b11;
-            end
-
         end
     end
-
 endmodule
