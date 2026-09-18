@@ -1,19 +1,21 @@
+```yaml
 project:
-  title: "My Game Handheld"
+  title: "Multi-Game VGA Handheld"
   author: "someoneumayknow1"
-  description: "A small multi-game VGA handheld"
- 
-
+  discord: ""
+  description: "A small multi-game handheld with VGA output"
+  language: "Verilog"
+  clock_hz: 0
   tiles: "1x1"
 
-  top_module: "tt_um_someoneumayknow1_handheld"
+  top_module: "tt_um_vga_example"
 
   source_files:
     - "project.v"
     - "pong.v"
-    - "menu.v"
 
   pinout:
+    # Inputs
     ui[0]: "Button 1"
     ui[1]: "Button 2"
     ui[2]: "Button 3"
@@ -23,15 +25,17 @@ project:
     ui[6]: ""
     ui[7]: ""
 
-    uo[0]: "VGA"
-    uo[1]: ""
-    uo[2]: ""
-    uo[3]: ""
-    uo[4]: ""
-    uo[5]: ""
-    uo[6]: ""
-    uo[7]: ""
+    # Outputs
+    uo[0]: "HSYNC"
+    uo[1]: "B0"
+    uo[2]: "G0"
+    uo[3]: "R0"
+    uo[4]: "VSYNC"
+    uo[5]: "B1"
+    uo[6]: "G1"
+    uo[7]: "R1"
 
+    # Bidirectional pins
     uio[0]: ""
     uio[1]: ""
     uio[2]: ""
@@ -42,3 +46,4 @@ project:
     uio[7]: ""
 
 yaml_version: 6
+```
