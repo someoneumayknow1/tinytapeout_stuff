@@ -1,4 +1,3 @@
-```yaml
 yaml_version: 6
 
 project:
@@ -42,4 +41,4 @@ pinout:
   uio[5]: ""
   uio[6]: ""
   uio[7]: ""
-```
+
