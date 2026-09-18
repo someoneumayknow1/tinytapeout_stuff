@@ -1,10 +1,8 @@
 project:
   title: "My Game Handheld"
   author: "someoneumayknow1"
-  discord: ""
   description: "A small multi-game VGA handheld"
-  language: "Verilog"
-  clock_hz: 0
+ 
 
   tiles: "1x1"
 
