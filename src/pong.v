@@ -16,9 +16,11 @@ module pong (
     localparam SCREEN_WIDTH = 200;
     localparam SCREEN_HEIGHT = 100;
     localparam PADDLE_HEIGHT = 20;
+    localparam PADDLE_X = 5;
+    localparam RIGHT_PADDLE_X = 194;
 
-    reg signed [1:0] ball_dx;
-    reg signed [1:0] ball_dy;
+    reg signed [2:0] ball_dx;
+    reg signed [2:0] ball_dy;
     reg [19:0] counter;
     wire tick = (counter == 20'd0);
 
@@ -53,18 +55,38 @@ module pong (
                 else if (ball_y >= SCREEN_HEIGHT - 2)
                     ball_dy <= -1;
 
-                if (ball_x <= 5) begin
-                    if (ball_y >= paddle_left_y && ball_y <= paddle_left_y + PADDLE_HEIGHT)
+                // Left paddle: collide only while moving left.
+                if (ball_dx < 0 && ball_x <= PADDLE_X) begin
+                    if (ball_y >= paddle_left_y && ball_y <= paddle_left_y + PADDLE_HEIGHT) begin
                         ball_dx <= 1;
-                    else
+                        if (ball_y < paddle_left_y + 5)
+                            ball_dy <= -2;
+                        else if (ball_y < paddle_left_y + 10)
+                            ball_dy <= -1;
+                        else if (ball_y < paddle_left_y + 15)
+                            ball_dy <= 1;
+                        else
+                            ball_dy <= 2;
+                    end else begin
                         status <= 2'b11;
+                    end
                 end
 
-                if (ball_x >= SCREEN_WIDTH - 5) begin
-                    if (ball_y >= paddle_right_y && ball_y <= paddle_right_y + PADDLE_HEIGHT)
+                // Right paddle: collide only while moving right.
+                if (ball_dx > 0 && ball_x >= RIGHT_PADDLE_X) begin
+                    if (ball_y >= paddle_right_y && ball_y <= paddle_right_y + PADDLE_HEIGHT) begin
                         ball_dx <= -1;
-                    else
+                        if (ball_y < paddle_right_y + 5)
+                            ball_dy <= -2;
+                        else if (ball_y < paddle_right_y + 10)
+                            ball_dy <= -1;
+                        else if (ball_y < paddle_right_y + 15)
+                            ball_dy <= 1;
+                        else
+                            ball_dy <= 2;
+                    end else begin
                         status <= 2'b10;
+                    end
                 end
             end
         end
