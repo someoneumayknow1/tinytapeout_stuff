@@ -105,7 +105,8 @@ module tt_um_huahuahua_lmaooooooo (
                         status <= 2'b00;
                     end
                 end
-            end else if (button3) begin
+            end else if (selected_game == 1 && status != 2'b00) begin
+                // Losing is the intentional way out of Pong.
                 playing <= 0;
             end else if (selected_game == 1 && status == 2'b00) begin
                 if (button0 && paddle_a_y > 0)
@@ -174,23 +175,45 @@ module tt_um_huahuahua_lmaooooooo (
         pixel_on = 1'b0;
 
         if (~playing) begin
-            // Four menu entries.
-            if ((game_y >= 10) && (game_y < 25) && (game_x >= 30) && (game_x < 170))
-                pixel_on = 1'b1;
-            if ((game_y >= 30) && (game_y < 45) && (game_x >= 30) && (game_x < 170))
-                pixel_on = 1'b1;
-            if ((game_y >= 50) && (game_y < 65) && (game_x >= 30) && (game_x < 170))
-                pixel_on = 1'b1;
-            if ((game_y >= 70) && (game_y < 85) && (game_x >= 30) && (game_x < 170))
-                pixel_on = 1'b1;
+            // Four clearly different game icons:
+            // 0 = Snake, 1 = Pong, 2 = Space Invaders, 3 = Empty.
+            // Each icon sits in its own menu row.
 
-            // Selection cursor.
-            if ((game_x >= 15) && (game_x < 23)) begin
-                if ((selected_game == 0) && (game_y >= 14) && (game_y < 21)) pixel_on = 1'b1;
-                if ((selected_game == 1) && (game_y >= 34) && (game_y < 41)) pixel_on = 1'b1;
-                if ((selected_game == 2) && (game_y >= 54) && (game_y < 61)) pixel_on = 1'b1;
-                if ((selected_game == 3) && (game_y >= 74) && (game_y < 81)) pixel_on = 1'b1;
+            // Snake: zig-zag body + food.
+            if ((game_y >= 12) && (game_y < 15) && (game_x >= 45) && (game_x < 80)) pixel_on = 1'b1;
+            if ((game_y >= 15) && (game_y < 18) && (game_x >= 75) && (game_x < 105)) pixel_on = 1'b1;
+            if ((game_y >= 18) && (game_y < 21) && (game_x >= 100) && (game_x < 130)) pixel_on = 1'b1;
+            if ((game_y >= 20) && (game_y < 23) && (game_x >= 125) && (game_x < 155)) pixel_on = 1'b1;
+            if ((game_x >= 160) && (game_x < 165) && (game_y >= 17) && (game_y < 22)) pixel_on = 1'b1;
+
+            // Pong: two paddles + ball.
+            if ((game_x >= 45) && (game_x < 50) && (game_y >= 31) && (game_y < 43)) pixel_on = 1'b1;
+            if ((game_x >= 150) && (game_x < 155) && (game_y >= 31) && (game_y < 43)) pixel_on = 1'b1;
+            if ((game_x >= 97) && (game_x < 103) && (game_y >= 34) && (game_y < 40)) pixel_on = 1'b1;
+            if ((game_x == 99 || game_x == 100) && (game_y >= 29) && (game_y < 45) && ((game_y & 3) != 0)) pixel_on = 1'b1;
+
+            // Space Invaders: alien shape.
+            if ((game_y >= 51) && (game_y < 55) && (game_x >= 85) && (game_x < 115)) pixel_on = 1'b1;
+            if ((game_y >= 55) && (game_y < 61) && (game_x >= 78) && (game_x < 122)) pixel_on = 1'b1;
+            if ((game_y >= 61) && (game_y < 64) && (game_x >= 84) && (game_x < 92)) pixel_on = 1'b1;
+            if ((game_y >= 61) && (game_y < 64) && (game_x >= 108) && (game_x < 116)) pixel_on = 1'b1;
+            if ((game_y >= 55) && (game_y < 59) && (game_x >= 88) && (game_x < 93)) pixel_on = 1'b0;
+            if ((game_y >= 55) && (game_y < 59) && (game_x >= 107) && (game_x < 112)) pixel_on = 1'b0;
+
+            // Empty slot: a big question mark.
+            if ((game_y >= 71) && (game_y < 74) && (game_x >= 95) && (game_x < 110)) pixel_on = 1'b1;
+            if ((game_y >= 74) && (game_y < 80) && (game_x >= 108) && (game_x < 113)) pixel_on = 1'b1;
+            if ((game_y >= 80) && (game_y < 83) && (game_x >= 101) && (game_x < 106)) pixel_on = 1'b1;
+            if ((game_y >= 86) && (game_y < 89) && (game_x >= 101) && (game_x < 106)) pixel_on = 1'b1;
+
+            // Selection cursor: a box beside the selected icon.
+            if ((game_x >= 25) && (game_x < 31)) begin
+                if ((selected_game == 0) && (game_y >= 10) && (game_y < 25)) pixel_on = 1'b1;
+                if ((selected_game == 1) && (game_y >= 29) && (game_y < 46)) pixel_on = 1'b1;
+                if ((selected_game == 2) && (game_y >= 49) && (game_y < 66)) pixel_on = 1'b1;
+                if ((selected_game == 3) && (game_y >= 69) && (game_y < 91)) pixel_on = 1'b1;
             end
+        end
         end else if (selected_game == 1) begin
             // Pong paddles and ball.
             if ((game_x < 5) && (game_y >= paddle_a_y) && (game_y < paddle_a_y + 20))
