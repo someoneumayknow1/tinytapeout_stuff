@@ -22,6 +22,7 @@ module pong (
     reg signed [2:0] ball_dx;
     reg signed [2:0] ball_dy;
     reg [19:0] counter;
+    reg signed [7:0] hit_offset;
     wire tick = (counter == 20'd0);
 
     always @(posedge clk) begin
@@ -36,6 +37,7 @@ module pong (
             status <= 2'b00;
         end else begin
             counter <= counter + 1;
+
             if (tick && status == 2'b00) begin
                 if (button_up && paddle_left_y > 0)
                     paddle_left_y <= paddle_left_y - 1;
@@ -59,14 +61,10 @@ module pong (
                 if (ball_dx < 0 && ball_x <= PADDLE_X) begin
                     if (ball_y >= paddle_left_y && ball_y <= paddle_left_y + PADDLE_HEIGHT) begin
                         ball_dx <= 1;
-                        if (ball_y < paddle_left_y + 5)
-                            ball_dy <= -2;
-                        else if (ball_y < paddle_left_y + 10)
-                            ball_dy <= -1;
-                        else if (ball_y < paddle_left_y + 15)
-                            ball_dy <= 1;
-                        else
-                            ball_dy <= 2;
+                        hit_offset = $signed({1'b0, ball_y}) - $signed({1'b0, paddle_left_y + 10});
+                        ball_dy <= hit_offset >>> 2;
+                        if (hit_offset != 0 && (hit_offset >>> 2) == 0)
+                            ball_dy <= (hit_offset < 0) ? -1 : 1;
                     end else begin
                         status <= 2'b11;
                     end
@@ -76,14 +74,10 @@ module pong (
                 if (ball_dx > 0 && ball_x >= RIGHT_PADDLE_X) begin
                     if (ball_y >= paddle_right_y && ball_y <= paddle_right_y + PADDLE_HEIGHT) begin
                         ball_dx <= -1;
-                        if (ball_y < paddle_right_y + 5)
-                            ball_dy <= -2;
-                        else if (ball_y < paddle_right_y + 10)
-                            ball_dy <= -1;
-                        else if (ball_y < paddle_right_y + 15)
-                            ball_dy <= 1;
-                        else
-                            ball_dy <= 2;
+                        hit_offset = $signed({1'b0, ball_y}) - $signed({1'b0, paddle_right_y + 10});
+                        ball_dy <= hit_offset >>> 2;
+                        if (hit_offset != 0 && (hit_offset >>> 2) == 0)
+                            ball_dy <= (hit_offset < 0) ? -1 : 1;
                     end else begin
                         status <= 2'b10;
                     end
