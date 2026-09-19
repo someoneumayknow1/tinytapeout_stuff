@@ -31,11 +31,13 @@ module tt_um_huahuahua_lmaooooooo (
         .vpos(pix_y)
     );
 
-    // The game uses a 200x100 logical screen.
-    // The VGA timing below is 400x200 visible pixels, so each
-    // logical pixel becomes a 2x2 block on the output.
-    wire [7:0] game_x = pix_x[8:1];
-    wire [6:0] game_y = pix_y[7:1];
+    // Standard VGA is 640x480. The game area is a centered 400x200
+    // physical-pixel rectangle, with each 200x100 logical pixel
+    // rendered as a 2x2 block.
+    wire in_game_area = (pix_x >= 10'd120) && (pix_x < 10'd520) &&
+                        (pix_y >= 10'd140) && (pix_y < 10'd340);
+    wire [7:0] game_x = (pix_x - 10'd120) >> 1;
+    wire [6:0] game_y = (pix_y - 10'd140) >> 1;
 
     // Four buttons:
     // Menu: button 0 = up, 1 = down, 2 = select, 3 = back.
@@ -61,8 +63,8 @@ module tt_um_huahuahua_lmaooooooo (
 
     reg [7:0] ball_x;
     reg [6:0] ball_y;
-    reg signed [1:0] ball_dx;
-    reg signed [1:0] ball_dy;
+    reg signed [2:0] ball_dx;
+    reg signed [2:0] ball_dy;
     reg [6:0] paddle_a_y;
     reg [6:0] paddle_b_y;
     reg [1:0] status;
@@ -116,26 +118,50 @@ module tt_um_huahuahua_lmaooooooo (
                 else if (button3 && paddle_b_y < 80)
                     paddle_b_y <= paddle_b_y + 1'b1;
 
-                ball_x <= ball_x + ball_dx;
-                ball_y <= ball_y + ball_dy;
+                // Move without mixing unsigned ball coordinates with a
+                // signed velocity (which can otherwise wrap -1 to 127).
+                if (ball_dx > 0)
+                    ball_x <= ball_x + 1'b1;
+                else
+                    ball_x <= ball_x - 1'b1;
 
-                if (ball_y <= 1)
+                if (ball_dy > 0)
+                    ball_y <= ball_y + 1'b1;
+                else if (ball_dy < 0)
+                    ball_y <= ball_y - 1'b1;
+
+                // Bounce only when moving toward the wall.
+                if (ball_dy < 0 && ball_y <= 1)
                     ball_dy <= 1;
-                else if (ball_y >= 98)
+                else if (ball_dy > 0 && ball_y >= 98)
                     ball_dy <= -1;
 
-                if (ball_x <= 5) begin
-                    if ((ball_y >= paddle_a_y) && (ball_y <= paddle_a_y + 20))
+                if (ball_dx < 0 && ball_x <= 5) begin
+                    if ((ball_y >= paddle_a_y) && (ball_y <= paddle_a_y + 20)) begin
                         ball_dx <= 1;
-                    else
+                        if (ball_y < paddle_a_y + 10)
+                            ball_dy <= -1;
+                        else if (ball_y > paddle_a_y + 10)
+                            ball_dy <= 1;
+                        else
+                            ball_dy <= 0;
+                    end else begin
                         status <= 2'b11;
+                    end
                 end
 
-                if (ball_x >= 194) begin
-                    if ((ball_y >= paddle_b_y) && (ball_y <= paddle_b_y + 20))
+                if (ball_dx > 0 && ball_x >= 194) begin
+                    if ((ball_y >= paddle_b_y) && (ball_y <= paddle_b_y + 20)) begin
                         ball_dx <= -1;
-                    else
+                        if (ball_y < paddle_b_y + 10)
+                            ball_dy <= -1;
+                        else if (ball_y > paddle_b_y + 10)
+                            ball_dy <= 1;
+                        else
+                            ball_dy <= 0;
+                    end else begin
                         status <= 2'b10;
+                    end
                 end
             end
         end
@@ -188,9 +214,9 @@ module tt_um_huahuahua_lmaooooooo (
         // selected_game == 3 is intentionally empty.
     end
 
-    assign R = (video_active && pixel_on) ? 2'b11 : 2'b00;
-    assign G = (video_active && pixel_on) ? 2'b11 : 2'b00;
-    assign B = (video_active && pixel_on) ? 2'b11 : 2'b00;
+    assign R = (video_active && in_game_area && pixel_on) ? 2'b11 : 2'b00;
+    assign G = (video_active && in_game_area && pixel_on) ? 2'b11 : 2'b00;
+    assign B = (video_active && in_game_area && pixel_on) ? 2'b11 : 2'b00;
 
 endmodule
 
@@ -207,13 +233,13 @@ module hvsync_generator (
     output wire [9:0] hpos,
     output wire [9:0] vpos
 );
-    localparam H_VISIBLE = 400;
+    localparam H_VISIBLE = 640;
     localparam H_FRONT   = 16;
     localparam H_SYNC    = 96;
     localparam H_BACK    = 48;
     localparam H_TOTAL   = H_VISIBLE + H_FRONT + H_SYNC + H_BACK;
 
-    localparam V_VISIBLE = 200;
+    localparam V_VISIBLE = 480;
     localparam V_FRONT   = 10;
     localparam V_SYNC    = 2;
     localparam V_BACK    = 33;
