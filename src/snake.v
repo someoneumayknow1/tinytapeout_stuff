@@ -81,7 +81,7 @@ module snake_game #(
                        (dir==DIR_RIGHT&&snake_x[0]==food_x-1'b1&&snake_y[0]==food_y)||
                        (dir==DIR_DOWN&&snake_x[0]==food_x&&snake_y[0]==food_y-1'b1)||
                        (dir==DIR_LEFT&&snake_x[0]==food_x+1'b1&&snake_y[0]==food_y)) begin
-                        if(length<MAX_LEN) length<=length+1'b1;
+                        if(length<5'd31) length<=length+1'b1;
                         lfsr<={lfsr[14:0],lfsr[15]^lfsr[13]^lfsr[12]^lfsr[10]};
                         if(lfsr[5:0]<40) food_x<=lfsr[4:0]; else food_x<=0;
                         if(lfsr[10:6]<20) food_y<=lfsr[10:6]; else food_y<=0;
