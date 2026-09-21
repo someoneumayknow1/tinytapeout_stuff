@@ -40,9 +40,11 @@ module tt_um_huahuahua_lmaooooooo (
     );
 
     wire [1:0] snake_status;
-    wire [5:0] snake_length;
-    wire [4:0] snake_food_x,snake_food_y;
-    wire [159:0] snake_body_x,snake_body_y;
+    wire [4:0] snake_length;
+    wire [5:0] snake_food_x,
+    wire [4:0] snake_food_y;
+    wire [16*6-1:0] snake_body_x;
+    wire [16*6-1:0] snake_body_y;
     snake_game snake_game_inst(
         .clk(clk),.reset((~rst_n)||(~playing)||(selected_game!=2'd0)),
         .button_left(button0),.button_right(button1),.tick(game_tick),.status(snake_status),.length(snake_length),
