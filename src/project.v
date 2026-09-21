@@ -17,10 +17,8 @@ module tt_um_huahuahua_lmaooooooo (
 
     // 200x100 logical game area, centered on 640x480 VGA.
     wire in_game_area = (pix_x >= 10'd120) && (pix_x < 10'd520) && (pix_y >= 10'd140) && (pix_y < 10'd340);
-    wire [9:0] game_x_wide = (pix_x - 10'd120) >> 1;
-    wire [9:0] game_y_wide = (pix_y - 10'd140) >> 1;
-    wire [7:0] game_x = game_x_wide[7:0];
-    wire [6:0] game_y = game_y_wide[6:0];
+    wire [7:0] game_x = pix_x[9:1] - 8'd60;
+    wire [6:0] game_y = pix_y[9:1] - 7'd70;
 
     wire button0=ui_in[0], button1=ui_in[1], button2=ui_in[2], button3=ui_in[3];
     reg [19:0] game_counter;
@@ -42,7 +40,8 @@ module tt_um_huahuahua_lmaooooooo (
     );
 
     wire [1:0] snake_status;
-    wire [4:0] snake_length,snake_food_x,snake_food_y;
+    wire [5:0] snake_length;
+    wire [4:0] snake_food_x,snake_food_y;
     wire [159:0] snake_body_x,snake_body_y;
     snake_game snake_game_inst(
         .clk(clk),.reset((~rst_n)||(~playing)||(selected_game!=2'd0)),
@@ -66,12 +65,10 @@ module tt_um_huahuahua_lmaooooooo (
 
     reg pixel_on;
     integer i;
-    integer sx,sy;
-    wire [31:0] snake_length_ext = {27'd0,snake_length};
-    wire [31:0] snake_food_x_ext = {27'd0,snake_food_x};
-    wire [31:0] snake_food_y_ext = {27'd0,snake_food_y};
+    reg [4:0] snake_cell_x;
+    reg [4:0] snake_cell_y;
     always @(*) begin
-        pixel_on=1'b0; sx=0; sy=0;
+        pixel_on=1'b0; snake_cell_x=5'd0; snake_cell_y=5'd0;
         if (!playing) begin
             // Snake icon.
             if((game_y>=12)&&(game_y<15)&&(game_x>=45)&&(game_x<80)) pixel_on=1'b1;
@@ -110,10 +107,13 @@ module tt_um_huahuahua_lmaooooooo (
             // Snake: 40x20 cells in a 160x80 playfield.
             if((game_x>=20)&&(game_x<180)&&(game_y>=10)&&(game_y<90)) begin
                 if((game_x==20)||(game_x==179)||(game_y==10)||(game_y==89)) pixel_on=1'b1;
-                sx=({24'd0,game_x}-32'd20)>>2; sy=({25'd0,game_y}-32'd10)>>2;
-                if((sx==snake_food_x_ext)&&(sy==snake_food_y_ext)) pixel_on=1'b1;
+                snake_cell_x=(game_x-8'd20)>>2;
+                snake_cell_y=(game_y-7'd10)>>2;
+                if((snake_cell_x==snake_food_x)&&(snake_cell_y==snake_food_y)) pixel_on=1'b1;
                 for(i=0;i<32;i=i+1) begin
-                    if((i<snake_length_ext)&&(sx=={27'd0,snake_body_x[i*5 +: 5]})&&(sy=={27'd0,snake_body_y[i*5 +: 5]})) pixel_on=1'b1;
+                    if((i<snake_length)&&
+                       (snake_cell_x==snake_body_x[i*5 +: 5])&&
+                       (snake_cell_y==snake_body_y[i*5 +: 5])) pixel_on=1'b1;
                 end
             end
         end else if(selected_game==2'd2) begin
@@ -131,8 +131,8 @@ module hvsync_generator(
     input wire clk,input wire reset,output reg hsync,output reg vsync,output wire display_on,
     output wire [9:0] hpos,output wire [9:0] vpos
 );
-    localparam H_VISIBLE=640,H_FRONT=16,H_SYNC=96,H_BACK=48,H_TOTAL=800;
-    localparam V_VISIBLE=480,V_FRONT=10,V_SYNC=2,V_BACK=33,V_TOTAL=525;
+    localparam H_VISIBLE=640,H_FRONT=16,H_SYNC=96,H_TOTAL=800;
+    localparam V_VISIBLE=480,V_FRONT=10,V_SYNC=2,V_TOTAL=525;
     reg [9:0] h_count,v_count;
     assign hpos=h_count; assign vpos=v_count; assign display_on=(h_count<H_VISIBLE)&&(v_count<V_VISIBLE);
     always @(posedge clk) begin
