@@ -49,15 +49,35 @@ module tt_um_huahuahua_lmaooooooo (
         .food_x(snake_food_x),.food_y(snake_food_y),.body_x(snake_body_x),.body_y(snake_body_y)
     );
 
-    // Menu: button0/1 select a game, button2 starts it. Button3 is not an exit button.
+    // Menu buttons are one-shot: a held button acts once, then must be released.
+    reg menu_up_armed, menu_down_armed, menu_start_armed;
     always @(posedge clk) begin
-        if (~rst_n) begin selected_game<=0; playing<=0; end
-        else if (game_tick) begin
+        if (~rst_n) begin
+            selected_game<=0;
+            playing<=0;
+            menu_up_armed<=1'b1;
+            menu_down_armed<=1'b1;
+            menu_start_armed<=1'b1;
+        end else if (game_tick) begin
+            if (!button0) menu_up_armed<=1'b1;
+            if (!button1) menu_down_armed<=1'b1;
+            if (!button2) menu_start_armed<=1'b1;
+
             if (!playing) begin
-                if (button0) begin if(selected_game==0) selected_game<=3; else selected_game<=selected_game-1'b1; end
-                else if (button1) begin if(selected_game==3) selected_game<=0; else selected_game<=selected_game+1'b1; end
-                else if (button2 && selected_game!=2'd3) playing<=1'b1;
-            end else if ((selected_game==2'd0 && snake_status!=0)||(selected_game==2'd1 && pong_status!=0)) begin
+                if (button0 && menu_up_armed) begin
+                    menu_up_armed<=1'b0;
+                    if(selected_game==0) selected_game<=3;
+                    else selected_game<=selected_game-1'b1;
+                end else if (button1 && menu_down_armed) begin
+                    menu_down_armed<=1'b0;
+                    if(selected_game==3) selected_game<=0;
+                    else selected_game<=selected_game+1'b1;
+                end else if (button2 && menu_start_armed && selected_game!=2'd3) begin
+                    menu_start_armed<=1'b0;
+                    playing<=1'b1;
+                end
+            end else if ((selected_game==2'd0 && snake_status!=0) ||
+                         (selected_game==2'd1 && pong_status!=0)) begin
                 playing<=1'b0;
             end
         end
