@@ -19,8 +19,22 @@ module pong (
     localparam RIGHT_X=194;
     reg signed [2:0] ball_dx, ball_dy;
     reg [19:0] counter;
-    reg signed [7:0] hit_offset;
+    wire signed [8:0] left_hit_offset = $signed({2'b00,ball_y}) - $signed({2'b00,paddle_left_y}) - 9'sd10;
+    wire signed [8:0] right_hit_offset = $signed({2'b00,ball_y}) - $signed({2'b00,paddle_right_y}) - 9'sd10;
     wire tick=(counter==20'd0);
+
+    function signed [2:0] offset_to_dy;
+        input signed [8:0] offset;
+        begin
+            if(offset >= 9'sd12) offset_to_dy=3'sd3;
+            else if(offset >= 9'sd4) offset_to_dy=3'sd2;
+            else if(offset > 0) offset_to_dy=3'sd1;
+            else if(offset <= -9'sd12) offset_to_dy=-3'sd3;
+            else if(offset <= -9'sd4) offset_to_dy=-3'sd2;
+            else if(offset < 0) offset_to_dy=-3'sd1;
+            else offset_to_dy=3'sd0;
+        end
+    endfunction
 
     always @(posedge clk) begin
         if(reset) begin
@@ -46,17 +60,13 @@ module pong (
                 if(ball_dx<0&&ball_x<=LEFT_X) begin
                     if(ball_y>=paddle_left_y&&ball_y<=paddle_left_y+PADDLE_HEIGHT) begin
                         ball_dx<=1;
-                        hit_offset=$signed({1'b0,ball_y})-$signed({1'b0,paddle_left_y+10});
-                        ball_dy<=hit_offset>>>2;
-                        if(hit_offset!=0&&(hit_offset>>>2)==0) ball_dy<=(hit_offset<0)?-1:1;
+                        ball_dy<=offset_to_dy(left_hit_offset);
                     end else status<=2'b11;
                 end
                 if(ball_dx>0&&ball_x>=RIGHT_X) begin
                     if(ball_y>=paddle_right_y&&ball_y<=paddle_right_y+PADDLE_HEIGHT) begin
                         ball_dx<=-1;
-                        hit_offset=$signed({1'b0,ball_y})-$signed({1'b0,paddle_right_y+10});
-                        ball_dy<=hit_offset>>>2;
-                        if(hit_offset!=0&&(hit_offset>>>2)==0) ball_dy<=(hit_offset<0)?-1:1;
+                        ball_dy<=offset_to_dy(right_hit_offset);
                     end else status<=2'b10;
                 end
             end
