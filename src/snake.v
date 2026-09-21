@@ -1,125 +1,293 @@
+```verilog
 `default_nettype none
 
-module snake_game #(
-    parameter MAX_LEN = 32
-) (
-    input wire clk,
-    input wire reset,
-    input wire button_left,
-    input wire button_right,
-    input wire tick,
-    output reg [1:0] status,
-    output reg [5:0] length,
-    output reg [4:0] food_x,
-    output reg [4:0] food_y,
-    output wire [MAX_LEN*5-1:0] body_x,
-    output wire [MAX_LEN*5-1:0] body_y
-);
-    localparam DIR_UP=2'd0, DIR_RIGHT=2'd1, DIR_DOWN=2'd2, DIR_LEFT=2'd3;
+module snake_game (
+    input  wire       clk,
+    input  wire       reset,
 
-    // Packed shift registers are much cheaper than 32 individually
-    // conditionally-updated array registers.
-    reg [MAX_LEN*5-1:0] snake_x;
-    reg [MAX_LEN*5-1:0] snake_y;
+    // Four-button interface
+    // 0 = not pressed, 1 = pressed
+    input  wire       btn_up,
+    input  wire       btn_down,
+    input  wire       btn_left,
+    input  wire       btn_right,
+
+    // Logical 32x32 screen position
+    input  wire [4:0] render_x,
+    input  wire [4:0] render_y,
+
+    output reg        pixel_on
+);
+
+    localparam DIR_UP    = 2'd0;
+    localparam DIR_RIGHT = 2'd1;
+    localparam DIR_DOWN  = 2'd2;
+    localparam DIR_LEFT  = 2'd3;
+
+    localparam MAX_LEN = 32;
+
+    // One packed coordinate:
+    // {x[4:0], y[4:0]}
+    reg [9:0] history [0:31];
+
+    reg [5:0] length;
     reg [1:0] dir;
-    reg left_armed, right_armed;
-    reg [15:0] lfsr;
+
+    reg btn_up_old;
+    reg btn_down_old;
+    reg btn_left_old;
+    reg btn_right_old;
+
+    reg [4:0] food_x;
+    reg [4:0] food_y;
+
+    reg [15:0] move_counter;
+
     integer i;
 
-    assign body_x = snake_x;
-    assign body_y = snake_y;
+    wire [4:0] head_x = history[0][9:5];
+    wire [4:0] head_y = history[0][4:0];
 
-    function [1:0] turn_left;
-        input [1:0] d;
-        begin turn_left=d-1'b1; end
-    endfunction
+    /*
+     * A movement tick.
+     *
+     * This is intentionally slow enough to make the game playable
+     * on a VGA clock.
+     */
+    wire move_tick = (move_counter == 16'd50000);
 
-    function [1:0] turn_right;
-        input [1:0] d;
-        begin turn_right=d+1'b1; end
-    endfunction
+    /*
+     * Direction changes happen only on a button's rising edge.
+     *
+     * Therefore:
+     *
+     * press RIGHT
+     *     -> turn once
+     *
+     * hold RIGHT
+     *     -> nothing else happens
+     *
+     * release RIGHT
+     *     -> ready for another press
+     */
+    wire up_pressed =
+        btn_up && !btn_up_old;
 
-    // The next head position is also the position used for self-collision.
-    reg [4:0] next_head_x;
-    reg [4:0] next_head_y;
-    always @(*) begin
-        next_head_x = snake_x[4:0];
-        next_head_y = snake_y[4:0];
-        case(dir)
-            DIR_UP:    next_head_y = snake_y[4:0] - 5'd1;
-            DIR_RIGHT: next_head_x = snake_x[4:0] + 5'd1;
-            DIR_DOWN:  next_head_y = snake_y[4:0] + 5'd1;
-            default:   next_head_x = snake_x[4:0] - 5'd1;
+    wire down_pressed =
+        btn_down && !btn_down_old;
+
+    wire left_pressed =
+        btn_left && !btn_left_old;
+
+    wire right_pressed =
+        btn_right && !btn_right_old;
+
+    reg [1:0] next_dir;
+    reg [4:0] next_x;
+    reg [4:0] next_y;
+    reg collision;
+
+    /*
+     * Calculate the next direction.
+     *
+     * 180-degree turns are forbidden.
+     */
+    always @* begin
+        next_dir = dir;
+
+        if (up_pressed && dir != DIR_DOWN)
+            next_dir = DIR_UP;
+        else if (right_pressed && dir != DIR_LEFT)
+            next_dir = DIR_RIGHT;
+        else if (down_pressed && dir != DIR_UP)
+            next_dir = DIR_DOWN;
+        else if (left_pressed && dir != DIR_RIGHT)
+            next_dir = DIR_LEFT;
+    end
+
+    /*
+     * Calculate the next head position.
+     *
+     * The 32x32 grid wraps around at the edges.
+     */
+    always @* begin
+        next_x = head_x;
+        next_y = head_y;
+
+        case (next_dir)
+            DIR_UP: begin
+                if (head_y == 0)
+                    next_y = 5'd31;
+                else
+                    next_y = head_y - 5'd1;
+            end
+
+            DIR_RIGHT: begin
+                if (head_x == 5'd31)
+                    next_x = 5'd0;
+                else
+                    next_x = head_x + 5'd1;
+            end
+
+            DIR_DOWN: begin
+                if (head_y == 5'd31)
+                    next_y = 5'd0;
+                else
+                    next_y = head_y + 5'd1;
+            end
+
+            DIR_LEFT: begin
+                if (head_x == 0)
+                    next_x = 5'd31;
+                else
+                    next_x = head_x - 5'd1;
+            end
         endcase
     end
 
+    /*
+     * Self collision.
+     *
+     * This is the important simplification:
+     *
+     *       {next_x,next_y} == history[i]
+     *
+     * No distance calculations.
+     * No geometry.
+     * No separate X/Y collision system.
+     */
+    always @* begin
+        collision = 1'b0;
+
+        for (i = 0; i < 32; i = i + 1) begin
+            if ((i < length) &&
+                ({next_x, next_y} == history[i]))
+                collision = 1'b1;
+        end
+    end
+
+    /*
+     * Game state.
+     */
     always @(posedge clk) begin
-        if(reset) begin
-            status<=0;
-            length<=6'd5;
-            dir<=DIR_RIGHT;
-            left_armed<=1;
-            right_armed<=1;
-            lfsr<=16'h1ACE;
-            food_x<=5'd25;
-            food_y<=5'd10;
+        if (reset) begin
+            history[0] <= {5'd16, 5'd16};
+            history[1] <= {5'd15, 5'd16};
+            history[2] <= {5'd14, 5'd16};
+            history[3] <= {5'd13, 5'd16};
 
-            snake_x<=0;
-            snake_y<=0;
-            snake_x[4:0]<=5'd20;
-            snake_x[9:5]<=5'd19;
-            snake_x[14:10]<=5'd18;
-            snake_x[19:15]<=5'd17;
-            snake_x[24:20]<=5'd16;
-            snake_y[4:0]<=5'd10;
-            snake_y[9:5]<=5'd10;
-            snake_y[14:10]<=5'd10;
-            snake_y[19:15]<=5'd10;
-            snake_y[24:20]<=5'd10;
-        end else begin
-            // A held button only turns once until that button is released.
-            if(!button_left) left_armed<=1;
-            if(!button_right) right_armed<=1;
+            length <= 6'd4;
+            dir <= DIR_RIGHT;
 
-            if(tick&&status==0) begin
-                if(button_left&&left_armed&&dir!=DIR_RIGHT) begin
-                    dir<=turn_left(dir);
-                    left_armed<=0;
-                end else if(button_right&&right_armed&&dir!=DIR_LEFT) begin
-                    dir<=turn_right(dir);
-                    right_armed<=0;
-                end
+            food_x <= 5'd24;
+            food_y <= 5'd16;
 
-                // Wall collision uses the current direction.
-                if((dir==DIR_UP&&snake_y[4:0]==5'd0)||
-                   (dir==DIR_RIGHT&&snake_x[4:0]==5'd39)||
-                   (dir==DIR_DOWN&&snake_y[4:0]==5'd19)||
-                   (dir==DIR_LEFT&&snake_x[4:0]==5'd0)) begin
-                    status<=2'b01;
-                end else begin
-                    // One simple shift: old body positions move toward the tail.
-                    // Unused tail positions can contain stale data; length decides
-                    // which positions are live.
-                    snake_x <= {snake_x[MAX_LEN*5-6:0],next_head_x};
-                    snake_y <= {snake_y[MAX_LEN*5-6:0],next_head_y};
+            move_counter <= 16'd0;
 
-                    // Food is on the next head cell.
-                    if(next_head_x==food_x && next_head_y==food_y) begin
-                        if(length<6'd32) length<=length+1'b1;
-                        lfsr<={lfsr[14:0],lfsr[15]^lfsr[13]^lfsr[12]^lfsr[10]};
-                        if(lfsr[5:0]<6'd40) food_x<=lfsr[4:0]; else food_x<=5'd0;
-                        if(lfsr[10:6]<5'd20) food_y<=lfsr[10:6]; else food_y<=5'd0;
+            btn_up_old <= 1'b0;
+            btn_down_old <= 1'b0;
+            btn_left_old <= 1'b0;
+            btn_right_old <= 1'b0;
+        end
+        else begin
+
+            /*
+             * Remember button state so a held button
+             * doesn't repeatedly trigger turns.
+             */
+            btn_up_old <= btn_up;
+            btn_down_old <= btn_down;
+            btn_left_old <= btn_left;
+            btn_right_old <= btn_right;
+
+            /*
+             * Movement clock.
+             */
+            if (move_tick) begin
+                move_counter <= 16'd0;
+
+                if (!collision) begin
+
+                    /*
+                     * Move the old body positions backwards.
+                     *
+                     * history[0] is always the head.
+                     */
+                    for (i = 31; i > 0; i = i - 1) begin
+                        if (i < length)
+                            history[i] <= history[i-1];
                     end
 
-                    // Only the new head checks the existing body.
-                    for(i=1;i<MAX_LEN;i=i+1) begin
-                        if((i<length) &&
-                           (next_head_x==snake_x[i*5 +: 5]) &&
-                           (next_head_y==snake_y[i*5 +: 5]))
-                            status<=2'b01;
+                    history[0] <= {next_x, next_y};
+
+                    dir <= next_dir;
+
+                    /*
+                     * Eat food.
+                     *
+                     * The snake grows by one entry.
+                     */
+                    if ((next_x == food_x) &&
+                        (next_y == food_y)) begin
+
+                        if (length < MAX_LEN)
+                            length <= length + 6'd1;
+
+                        /*
+                         * Simple deterministic food position.
+                         * We can replace this with a tiny LFSR later
+                         * if desired.
+                         */
+                        food_x <= food_x + 5'd7;
+                        food_y <= food_y + 5'd11;
                     end
                 end
+                else begin
+                    /*
+                     * Collision = restart the snake.
+                     */
+                    history[0] <= {5'd16, 5'd16};
+                    history[1] <= {5'd15, 5'd16};
+                    history[2] <= {5'd14, 5'd16};
+                    history[3] <= {5'd13, 5'd16};
+
+                    length <= 6'd4;
+                    dir <= DIR_RIGHT;
+                end
+            end
+            else begin
+                move_counter <= move_counter + 16'd1;
             end
         end
     end
+
+    /*
+     * GRAPHICS
+     *
+     * The renderer asks:
+     *
+     * "Is the current pixel's logical coordinate equal
+     *  to one of the snake positions?"
+     *
+     * Same history array.
+     * No second copy of the snake.
+     */
+    always @* begin
+        pixel_on = 1'b0;
+
+        if ((render_x == food_x) &&
+            (render_y == food_y)) begin
+            pixel_on = 1'b1;
+        end
+        else begin
+            for (i = 0; i < 32; i = i + 1) begin
+                if ((i < length) &&
+                    (render_x == history[i][9:5]) &&
+                    (render_y == history[i][4:0]))
+                    pixel_on = 1'b1;
+            end
+        end
+    end
+
 endmodule
+```
