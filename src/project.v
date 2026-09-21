@@ -41,10 +41,10 @@ module tt_um_huahuahua_lmaooooooo (
 
     wire [1:0] snake_status;
     wire [4:0] snake_length;
-    wire [5:0] snake_food_x,
+    wire [5:0] snake_food_x;
     wire [4:0] snake_food_y;
     wire [16*6-1:0] snake_body_x;
-    wire [16*6-1:0] snake_body_y;
+    wire [16*5-1:0] snake_body_y;
     snake_game snake_game_inst(
         .clk(clk),.reset((~rst_n)||(~playing)||(selected_game!=2'd0)),
         .button_left(button0),.button_right(button1),.tick(game_tick),.status(snake_status),.length(snake_length),
@@ -74,7 +74,7 @@ module tt_um_huahuahua_lmaooooooo (
                     menu_down_armed<=1'b0;
                     if(selected_game==3) selected_game<=0;
                     else selected_game<=selected_game+1'b1;
-                end else if (button2 && menu_start_armed && selected_game!=2'd3) begin
+                end else if (button2 && menu_start_armed && (selected_game==2'd0 || selected_game==2'd1)) begin
                     menu_start_armed<=1'b0;
                     playing<=1'b1;
                 end
@@ -87,7 +87,7 @@ module tt_um_huahuahua_lmaooooooo (
 
     reg pixel_on;
     integer i;
-    reg [4:0] snake_cell_x;
+    reg [5:0] snake_cell_x;
     reg [4:0] snake_cell_y;
     always @(*) begin
         pixel_on=1'b0; snake_cell_x=5'd0; snake_cell_y=5'd0;
@@ -132,9 +132,9 @@ module tt_um_huahuahua_lmaooooooo (
                 snake_cell_x=(game_x-8'd20)>>2;
                 snake_cell_y=(game_y-7'd10)>>2;
                 if((snake_cell_x==snake_food_x)&&(snake_cell_y==snake_food_y)) pixel_on=1'b1;
-                for(i=0;i<32;i=i+1) begin
+                for(i=0;i<16;i=i+1) begin
                     if((i<snake_length)&&
-                       (snake_cell_x==snake_body_x[i*5 +: 5])&&
+                       (snake_cell_x==snake_body_x[i*6 +: 6])&&
                        (snake_cell_y==snake_body_y[i*5 +: 5])) pixel_on=1'b1;
                 end
             end
