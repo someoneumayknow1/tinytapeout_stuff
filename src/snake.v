@@ -23,7 +23,12 @@ module snake_game #(
     reg [1:0] dir;
     reg left_armed, right_armed;
     reg [15:0] lfsr;
-    integer i;
+
+    // Keep procedural loop indices local to the process that uses them.
+    // Sharing one integer between combinational and clocked always blocks
+    // makes it a multi-driven 32-bit RTL signal in synthesis.
+    integer collision_i;
+    integer history_i;
 
     genvar g;
     generate
@@ -63,8 +68,8 @@ module snake_game #(
     // New head compared with the previous 31 body positions.
     always @(*) begin
         self_collision=1'b0;
-        for(i=1;i<MAX_LEN;i=i+1) begin
-            if((i<length) && ({next_head_x,next_head_y}==history[i]))
+        for(collision_i=1;collision_i<MAX_LEN;collision_i=collision_i+1) begin
+            if((collision_i<length) && ({next_head_x,next_head_y}==history[collision_i]))
                 self_collision=1'b1;
         end
     end
@@ -85,8 +90,8 @@ module snake_game #(
             history[2]<={5'd18,5'd10};
             history[3]<={5'd17,5'd10};
             history[4]<={5'd16,5'd10};
-            for(i=5;i<MAX_LEN;i=i+1)
-                history[i]<=10'd0;
+            for(history_i=5;history_i<MAX_LEN;history_i=history_i+1)
+                history[history_i]<=10'd0;
         end else begin
             // A held button turns only once. Release re-arms it.
             if(!button_left) left_armed<=1'b1;
@@ -106,9 +111,9 @@ module snake_game #(
                 end else if(self_collision) begin
                     status<=2'b01;
                 end else begin
-                    for(i=MAX_LEN-1;i>0;i=i-1) begin
-                        if(i<length)
-                            history[i]<=history[i-1];
+                    for(history_i=MAX_LEN-1;history_i>0;history_i=history_i-1) begin
+                        if(history_i<length)
+                            history[history_i]<=history[history_i-1];
                     end
                     history[0]<={next_head_x,next_head_y};
                     dir<=next_dir;
