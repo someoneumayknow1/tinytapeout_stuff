@@ -61,8 +61,8 @@ module snake_game #(
                 if(button_left&&left_armed&&dir!=DIR_RIGHT) begin dir<=turn_left(dir); left_armed<=0; end
                 else if(button_right&&right_armed&&dir!=DIR_LEFT) begin dir<=turn_right(dir); right_armed<=0; end
 
-                if((dir==DIR_UP&&snake_y[0]==0)||(dir==DIR_RIGHT&&snake_x[0]==39)||
-                   (dir==DIR_DOWN&&snake_y[0]==19)||(dir==DIR_LEFT&&snake_x[0]==0)) begin
+                if((dir==DIR_UP&&snake_y[0]==5'd0)||(dir==DIR_RIGHT&&snake_x[0]==5'd39)||
+                   (dir==DIR_DOWN&&snake_y[0]==5'd19)||(dir==DIR_LEFT&&snake_x[0]==5'd0)) begin
                     status<=2'b01;
                 end else begin
                     // Shift the current body.
@@ -87,7 +87,8 @@ module snake_game #(
                         if(lfsr[10:6]<20) food_y<=lfsr[10:6]; else food_y<=0;
                     end
 
-                    // Self collision.
+                    // Self collision: only the next head checks the existing body.
+                    // This is one head-to-body comparison chain, not body-to-body.
                     for(i=1;i<MAX_LEN;i=i+1) begin
                         if((i<length)&&(snake_x[0]==snake_x[i])&&(snake_y[0]==snake_y[i])) status<=2'b01;
                     end
